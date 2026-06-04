@@ -6,7 +6,11 @@ async function geocodeCity(city) {
     const cachedData = geocode.get(cacheKey);
     if(cachedData) return cachedData;
 
-    const response = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city)}&format=json&limit=1`);
+    const response = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city)}&format=json&limit=1`, {
+            headers: {
+                'User-Agent': 'WeatherAI-Travel-Assistant/1.0 (briandave771@gmail.com)'
+            }
+        });
     if (!response.ok) {
         throw new Error(`Error geocoding city: ${response.status}`);
     }

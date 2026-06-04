@@ -1,18 +1,29 @@
-import {currentWeather, forecast} from './cacheService.js';
+import { currentWeather, forecast } from './cacheService.js';
 import 'dotenv/config';
 
-const API_KEY = process.env.WEATHER_API_KEY
-const WEATHER_API_URL = process.env.WEATHER_API_URL
+const API_KEY = process.env.WEATHER_API_KEY;
+const WEATHER_API_BASE = process.env.WEATHER_API_URL || 'https://api.weather-ai.co/v1';
 
+// Helper to make authenticated fetch
+async function authFetch(url) {
+    const response = await fetch(url, {
+        headers: {
+            'Authorization': `Bearer ${API_KEY}`
+        }
+    });
+    return response;
+}
 
 async function fetchCurrentWeather(lat, lon) {
     const cacheKey = `${lat},${lon}`;
     const cachedData = currentWeather.get(cacheKey);
-    if(cachedData) {
+    if (cachedData) {
         return { source: 'cache', data: cachedData };
     }
 
-    const response = await fetch(`${WEATHER_API_URL}/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric`);
+    const url = `${WEATHER_API_BASE}/weather?lat=${lat}&lon=${lon}&units=metric`;
+    const response = await authFetch(url);
+    
     if (!response.ok) {
         throw new Error(`Error fetching current weather: ${response.status}`);
     }
@@ -25,11 +36,14 @@ async function fetchCurrentWeather(lat, lon) {
 async function fetchWeatherForecast(lat, lon, days = 3) {
     const cacheKey = `${lat},${lon},${days}`;
     const cachedData = forecast.get(cacheKey);
-    if(cachedData) {
+    if (cachedData) {
         return { source: 'cache', data: cachedData };
     }
 
-    const response = await fetch(`${WEATHER_API_URL}/forecast?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric&cnt=${days}`);
+    
+    const url = `${WEATHER_API_BASE}/weather?lat=${lat}&lon=${lon}&units=metric&days=${days}`;
+    const response = await authFetch(url);
+    
     if (!response.ok) {
         throw new Error(`Error fetching weather forecast: ${response.status}`);
     }
@@ -55,10 +69,8 @@ async function getFullWeather(lat, lon) {
     };
 }
 
-
 export {
     fetchWeatherForecast,
     getFullWeather,
     fetchCurrentWeather
-
 };
