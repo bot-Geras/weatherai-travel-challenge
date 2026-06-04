@@ -17,7 +17,7 @@ const aiLimiter = rateLimit({
 });
 
 
-exports = {
-    apiLimiter,
+export{
+    limiter as apiLimiter,
     aiLimiter
 }

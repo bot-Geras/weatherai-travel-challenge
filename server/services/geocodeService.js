@@ -21,6 +21,6 @@ async function geocodeCity(city) {
 
 }
 
-exports = {
+export{
     geocodeCity
 }

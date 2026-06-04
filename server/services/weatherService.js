@@ -56,7 +56,7 @@ async function getFullWeather(lat, lon) {
 }
 
 
-exports = {
+export {
     fetchWeatherForecast,
     getFullWeather,
     fetchCurrentWeather

@@ -1,14 +1,15 @@
-import { GoogleGenAI } from '@google/genai';
-import {aiAdvice} from './aiAdvice.js';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import {aiAdvice} from './cacheService.js';
 import 'dotenv/config';
 
 const API_KEY = process.env.GEMINI_API_KEY
 
-const ai = new GoogleGenAI({apiKey: API_KEY});
+const genAI = new GoogleGenerativeAI({apiKey: API_KEY});
 
-const model = ai.getGenerativeModel('gemini-2.5-flash');
+const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-const TravelPrompt = (weatherData) => `
+
+const TRAVEL_PROMPT = (weatherData) => `
 You are a concise travel assistant helping a user plan their trip.
 
 Based on the weather data below, generate a short, helpful response (max 100 words) that includes:
@@ -55,7 +56,7 @@ function getFallbackAdvice(weatherData) {
   return advice;
 }
 
-exports = {
+export {
     getTravelAdvice,
     getFallbackAdvice
 }

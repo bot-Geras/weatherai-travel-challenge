@@ -13,11 +13,10 @@ function getCache(store) {
         flush: () => store.flushAll(),
     };
 }
+export const currentWeather = getCache(currentWeatherCache)
+   export const forecast = getCache(forecastCache)
+    export const aiAdvice =  getCache(aiAdviceCache)
+    export const geocode = getCache(geocodeCache)
 
 
-exports = {
-    currentWeather: getCache(currentWeatherCache),
-    forecast: getCache(forecastCache),
-    aiAdvice: getCache(aiAdviceCache),
-    geocode: getCache(geocodeCache)
-};
+    
