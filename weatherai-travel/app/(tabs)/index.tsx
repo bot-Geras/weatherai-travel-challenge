@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { router } from 'expo-router';
 import * as Location from 'expo-location';
+import * as Haptics from 'expo-haptics';
+import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { getRecentCities, saveRecentCity } from '../../services/storage';
 import { geocodeCity } from '../../services/api';
 
@@ -23,6 +26,7 @@ export default function HomeScreen() {
   const performSearch = async (searchCity: string) => {
     const cityToSearch = searchCity.trim();
     if (!cityToSearch) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Error', 'Please enter a city name');
       return;
     }
@@ -30,9 +34,11 @@ export default function HomeScreen() {
     try {
       await geocodeCity(cityToSearch);
       await saveRecentCity(cityToSearch);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       setCity(''); // clear input after successful search
       router.push(`/weather/${encodeURIComponent(cityToSearch)}`);
     } catch (err: any) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const isNetworkError = err.message?.includes('Network') || err.message?.includes('fetch');
       const errorMsg = isNetworkError
         ? 'No internet connection. Please try again.'
@@ -51,6 +57,7 @@ export default function HomeScreen() {
   }, [city]);
 
   const handleRecentPress = (cityName: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setCity(cityName);
     performSearch(cityName);
   };
@@ -58,13 +65,14 @@ export default function HomeScreen() {
   const getCurrentLocation = async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       Alert.alert('Permission denied', 'Allow location to use this feature.');
       return;
     }
     setLoading(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
       const location = await Location.getCurrentPositionAsync({});
-      // Pass coordinates directly to weather screen
       router.push(`/weather/${location.coords.latitude},${location.coords.longitude}`);
     } catch (err) {
       Alert.alert('Error', 'Could not get your location.');
@@ -74,56 +82,80 @@ export default function HomeScreen() {
   };
 
   return (
-    <View className="flex-1 bg-gray-100 p-5">
-      <Text className="text-3xl font-bold text-center my-8">🌤️ WeatherAI Travel</Text>
-      
-      <TextInput
-        className="bg-white rounded-xl p-4 text-base mb-4"
-        placeholder="Enter city name (e.g., Tokyo)"
-        value={city}
-        onChangeText={setCity}
-        onSubmitEditing={handleSearch}
-      />
-      
-      <TouchableOpacity
-        className="bg-blue-500 p-4 rounded-xl items-center"
-        onPress={handleSearch}
-        disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color="white" />
-        ) : (
-          <Text className="text-white text-lg font-semibold">Get Weather</Text>
-        )}
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        className="bg-green-500 p-4 rounded-xl items-center mt-3"
-        onPress={getCurrentLocation}
-        disabled={loading}
-      >
-        <Text className="text-white text-lg font-semibold">📍 Use my location</Text>
-      </TouchableOpacity>
-
-      {recentCities.length > 0 && (
-        <>
-          <Text className="text-base font-semibold mt-8 mb-2">Recent searches</Text>
-          <FlatList
-            horizontal
-            data={recentCities}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                className="bg-gray-200 px-4 py-2 rounded-full mr-2"
-                onPress={() => handleRecentPress(item)}
-              >
-                <Text className="text-gray-800">{item}</Text>
-              </TouchableOpacity>
-            )}
-            keyExtractor={(item, idx) => `${item}-${idx}`}
-            showsHorizontalScrollIndicator={false}
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      className="flex-1 bg-white"
+    >
+      <View className="flex-1 px-6 pt-20">
+        <Animated.View entering={FadeInDown.duration(1000).springify()}>
+          <Text className="text-4xl font-extrabold text-gray-900 mb-2">WeatherAI</Text>
+          <Text className="text-xl text-gray-500 mb-10">Your smart travel companion</Text>
+        </Animated.View>
+        
+        <Animated.View 
+          entering={FadeInDown.delay(200).duration(1000).springify()}
+          className="bg-gray-100 rounded-2xl flex-row items-center px-4 py-1 mb-4 shadow-sm border border-gray-200"
+        >
+          <Ionicons name="search" size={20} color="#6B7280" />
+          <TextInput
+            className="flex-1 p-3 text-base text-gray-900"
+            placeholder="Where are you going?"
+            placeholderTextColor="#9CA3AF"
+            value={city}
+            onChangeText={setCity}
+            onSubmitEditing={handleSearch}
           />
-        </>
-      )}
-    </View>
+        </Animated.View>
+        
+        <Animated.View entering={FadeInDown.delay(400).duration(1000).springify()}>
+          <TouchableOpacity
+            className="bg-blue-600 p-4 rounded-2xl items-center shadow-md active:opacity-90"
+            onPress={handleSearch}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text className="text-white text-lg font-bold">Search Weather</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            className="flex-row justify-center items-center p-4 mt-3"
+            onPress={getCurrentLocation}
+            disabled={loading}
+          >
+            <Ionicons name="location" size={18} color="#3B82F6" />
+            <Text className="text-blue-500 text-base font-semibold ml-2">Use my location</Text>
+          </TouchableOpacity>
+        </Animated.View>
+
+        {recentCities.length > 0 && (
+          <Animated.View 
+            entering={FadeInUp.delay(600).duration(1000).springify()}
+            className="mt-10"
+          >
+            <Text className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Recent Destinations</Text>
+            <FlatList
+              horizontal
+              data={recentCities}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  className="bg-gray-100 px-5 py-3 rounded-2xl mr-3 border border-gray-200 shadow-sm"
+                  onPress={() => handleRecentPress(item)}
+                >
+                  <View className="flex-row items-center">
+                    <Ionicons name="time-outline" size={16} color="#6B7280" className="mr-2" />
+                    <Text className="text-gray-700 font-medium ml-2">{item}</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+              keyExtractor={(item, idx) => `${item}-${idx}`}
+              showsHorizontalScrollIndicator={false}
+            />
+          </Animated.View>
+        )}
+      </View>
+    </KeyboardAvoidingView>
   );
 }
