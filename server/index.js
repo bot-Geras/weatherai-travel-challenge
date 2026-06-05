@@ -8,6 +8,7 @@ import weatherRouter from './routes/weather.js'
 import travelRouter from './routes/travel.js'
 import geocodeRouter from './routes/geocode.js'
 import {errorHandler} from './middleware/errorHandler.js'
+import logger from './services/loggerService.js'
 import  'dotenv/config' 
 
 const app = express()
@@ -49,5 +50,5 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server running on port http://localhost:${PORT}`);
+  logger.success(`Server running on port http://localhost:${PORT}`);
 });

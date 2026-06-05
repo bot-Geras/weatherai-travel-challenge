@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { aiAdvice } from './cacheService.js';
+import logger from './loggerService.js';
 import 'dotenv/config';
 
 // Initialize DeepSeek client
@@ -52,28 +53,79 @@ async function getTravelAdvice(lat, lon, weatherData) {
         aiAdvice.set(cacheKey, advice);
         return { source: 'api', data: advice };
     } catch (error) {
-        console.error('DeepSeek API error:', error.message);
+        logger.error(`DeepSeek API error: ${error.message}`);
         const advice = getFallbackAdvice(weatherData);
         aiAdvice.set(cacheKey, advice);
         return { source: 'fallback', data: advice };
     }
 }
 
-// Rule-based fallback – expects weatherData with current.temp and current.condition
+// Comprehensive rule-based fallback advice
 function getFallbackAdvice(weatherData) {
-    const temp = weatherData?.current?.temp ?? 20;
-    const condition = weatherData?.current?.condition?.toLowerCase() ?? 'clear';
+    const tempVal = parseFloat(weatherData?.current?.temp);
+    const temp = isNaN(tempVal) ? 20 : tempVal;
+    
+    const condition = (weatherData?.current?.condition || 'clear').toLowerCase();
+    
+    const windSpeedVal = parseFloat(weatherData?.current?.wind_speed);
+    const windSpeed = isNaN(windSpeedVal) ? 0 : windSpeedVal;
+    
+    const humidityVal = parseFloat(weatherData?.current?.humidity);
+    const humidity = isNaN(humidityVal) ? 50 : humidityVal;
 
-    let advice = `Current temperature is ${temp}°C. `;
-    if (temp > 30) advice += 'Very hot! Pack sunscreen, hat, and light clothing. Stay hydrated. ';
-    else if (temp < 10) advice += 'Chilly! Pack a warm jacket, gloves, and a hat. ';
-    else advice += 'Pleasant weather. ';
+    let summary = isNaN(tempVal) 
+        ? `We're having trouble getting precise weather data, but typically for this area: `
+        : `The weather is currently ${temp}°C and ${condition}. `;
+    let packing = '';
+    let activity = '';
+    let safety = 'No weather warnings.';
 
-    if (condition.includes('rain')) advice += 'Expect rain – bring an umbrella. Consider indoor activities like museums. ';
-    else advice += 'Great for outdoor sightseeing. ';
+    // Temperature Logic
+    if (temp <= 0) {
+        packing = 'Wear heavy thermal layers, a down jacket, gloves, and insulated boots. ';
+        activity = 'Perfect for indoor heating or winter sports if available. ';
+    } else if (temp > 0 && temp <= 10) {
+        packing = 'Pack a warm coat, scarf, and layers. ';
+        activity = 'Great for a brisk walk, followed by a warm indoor break. ';
+    } else if (temp > 10 && temp <= 20) {
+        packing = 'A light jacket or sweater should be enough. ';
+        activity = 'Ideal for sightseeing and walking tours. ';
+    } else if (temp > 20 && temp <= 30) {
+        packing = 'Wear light, breathable cotton clothing and sunglasses. ';
+        activity = 'Perfect for outdoor cafes, parks, or the beach. ';
+    } else {
+        packing = 'Wear very light clothing, a hat, and plenty of sunscreen. ';
+        activity = 'Avoid direct sun during midday; seek air-conditioned spaces. ';
+        safety = 'High heat warning: Stay hydrated and limit physical exertion.';
+    }
 
-    advice += 'No weather warnings.';
-    return advice;
+    // Condition Logic
+    if (condition.includes('rain') || condition.includes('drizzle')) {
+        packing += 'Don\'t forget a waterproof jacket or umbrella. ';
+        activity = 'Consider visiting museums, galleries, or shopping malls to stay dry. ';
+    } else if (condition.includes('snow') || condition.includes('ice')) {
+        packing += 'Ensure your footwear has good grip. ';
+        activity = 'Expect travel delays; enjoy the winter scenery from indoors. ';
+        safety = 'Slippery conditions: Watch your step.';
+    } else if (condition.includes('thunder') || condition.includes('storm')) {
+        activity = 'Stay indoors and away from windows until the storm passes. ';
+        safety = 'Severe weather warning: Seek shelter immediately.';
+    } else if (condition.includes('fog') || condition.includes('mist')) {
+        activity = 'Visibility is low; be cautious if driving or hiking. ';
+    }
+
+    // Wind Logic
+    if (windSpeed > 15) {
+        packing += 'A windbreaker is highly recommended. ';
+        safety = windSpeed > 25 ? 'Gale warning: Avoid being near tall trees or structures.' : safety;
+    }
+
+    // Humidity Logic
+    if (humidity > 80 && temp > 25) {
+        summary += 'It feels quite humid. ';
+    }
+
+    return `${summary}${packing}${activity}${safety}`;
 }
 
 export { getTravelAdvice, getFallbackAdvice };

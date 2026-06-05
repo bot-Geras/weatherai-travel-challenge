@@ -1,15 +1,15 @@
 import express from 'express';
 import { fetchCurrentWeather, fetchWeatherForecast, getFullWeather } from '../services/weatherService.js';
+import { validateWeatherParams } from '../middleware/validator.js';
+import logger from '../services/loggerService.js';
 
 const router = express.Router();
 
 // GET /api/weather/current?lat=35.6895&lon=139.6917
-router.get('/current', async (req, res, next) => {
+router.get('/current', validateWeatherParams, async (req, res, next) => {
     try {
         const { lat, lon } = req.query;
-        if (!lat || !lon) {
-            return res.status(400).json({ error: 'lat and lon are required' });
-        }
+        logger.info(`Fetching current weather for ${lat}, ${lon}`);
         const result = await fetchCurrentWeather(parseFloat(lat), parseFloat(lon));
         res.json(result);
     } catch (err) {
@@ -18,12 +18,10 @@ router.get('/current', async (req, res, next) => {
 });
 
 // GET /api/weather/forecast?lat=35.6895&lon=139.6917&days=3
-router.get('/forecast', async (req, res, next) => {
+router.get('/forecast', validateWeatherParams, async (req, res, next) => {
     try {
         const { lat, lon, days = 3 } = req.query;
-        if (!lat || !lon) {
-            return res.status(400).json({ error: 'lat and lon are required' });
-        }
+        logger.info(`Fetching ${days}-day forecast for ${lat}, ${lon}`);
         const result = await fetchWeatherForecast(parseFloat(lat), parseFloat(lon), parseInt(days));
         res.json(result);
     } catch (err) {
@@ -32,12 +30,10 @@ router.get('/forecast', async (req, res, next) => {
 });
 
 // GET /api/weather/full?lat=35.6895&lon=139.6917
-router.get('/full', async (req, res, next) => {
+router.get('/full', validateWeatherParams, async (req, res, next) => {
     try {
         const { lat, lon } = req.query;
-        if (!lat || !lon) {
-            return res.status(400).json({ error: 'lat and lon are required' });
-        }
+        logger.info(`Fetching full weather report for ${lat}, ${lon}`);
         const result = await getFullWeather(parseFloat(lat), parseFloat(lon));
         res.json(result);
     } catch (err) {

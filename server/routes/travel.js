@@ -2,6 +2,8 @@ import express from 'express';
 import { getFullWeather } from '../services/weatherService.js';
 import { geocodeCity } from '../services/geocodeService.js';
 import { getTravelAdvice, getFallbackAdvice } from '../services/deepseekService.js';
+import { validateTravelAdviceParams } from '../middleware/validator.js';
+import logger from '../services/loggerService.js';
 
 const router = express.Router();
 
@@ -21,42 +23,56 @@ function getConditionText(code) {
     return map[String(code)] || 'Unknown';
 }
 
-router.get('/advice', async (req, res, next) => {
+router.get('/advice', validateTravelAdviceParams, async (req, res, next) => {
     try {
         const { lat, lon, city } = req.query;
         let latitude, longitude;
 
         if (city) {
+            logger.info(`Generating travel advice for city: ${city}`);
             const location = await geocodeCity(city);
             latitude = location.lat;
             longitude = location.lon;
-        } else if (lat && lon) {
+        } else {
+            logger.info(`Generating travel advice for coordinates: ${lat}, ${lon}`);
             latitude = parseFloat(lat);
             longitude = parseFloat(lon);
-        } else {
-            return res.status(400).json({ error: 'Either city or lat/lon parameters are required' });
         }
 
-        const weather = await getFullWeather(latitude, longitude);
-        
-        // The full API response is inside weather.current
+        let weather;
+        try {
+            weather = await getFullWeather(latitude, longitude);
+        } catch (weatherErr) {
+            logger.error(`Weather fetch failed for ${latitude}, ${longitude}: ${weatherErr.message}`);
+            // Provide a minimal structure so the rest of the logic doesn't crash
+            weather = {
+                current: { 
+                    current: { temperature: 'N/A', condition_code: 'unknown' },
+                    hourly: []
+                },
+                sources: { current: 'error', forecast: 'error' }
+            };
+        }
+
         const apiResponse = weather.current;
-        
-        // Extract current weather (top-level 'current' object)
         const currentData = apiResponse.current;
-        // Extract first hour for humidity
         const firstHour = apiResponse.hourly?.[0];
         
-        const temperature = currentData?.temperature ?? 'N/A';
-        const condition = getConditionText(currentData?.condition_code);
-        const humidity = firstHour?.humidity ?? 'N/A';
+        const temperature = currentData?.temperature && currentData.temperature !== 'N/A' 
+            ? currentData.temperature 
+            : '--';
+        const condition = currentData?.condition_code && currentData.condition_code !== 'unknown'
+            ? getConditionText(currentData.condition_code)
+            : 'Weather Data Unavailable';
+        const humidity = firstHour?.humidity && firstHour.humidity !== 'N/A'
+            ? firstHour.humidity 
+            : '--';
         
-        // Build simplified object for AI
         const aiWeatherData = {
             current: {
-                temp: temperature,
-                condition: condition,
-                humidity: humidity,
+                temp: temperature === '--' ? 'N/A' : temperature,
+                condition: condition === 'Weather Data Unavailable' ? 'unknown' : condition,
+                humidity: humidity === '--' ? 'N/A' : humidity,
                 wind_speed: currentData?.wind_speed
             }
         };
@@ -64,8 +80,13 @@ router.get('/advice', async (req, res, next) => {
         let aiResult;
         try {
             aiResult = await getTravelAdvice(latitude, longitude, aiWeatherData);
+            if (aiResult.source === 'api') {
+                logger.success(`Successfully generated AI advice for ${latitude}, ${longitude}`);
+            } else {
+                logger.warn(`Using ${aiResult.source} advice for ${latitude}, ${longitude}`);
+            }
         } catch (err) {
-            console.error('AI error:', err);
+            logger.error(`AI generation failed: ${err.message}`);
             aiResult = { source: 'fallback', data: getFallbackAdvice(aiWeatherData) };
         }
         

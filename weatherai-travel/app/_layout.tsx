@@ -15,7 +15,7 @@ export default function RootLayout() {
       <Stack screenOptions={{headerShown: false}}>
 
        <Stack.Screen name="(tabs)"  />
-       <Stack.Screen name="weather/[city]" options={{headerShown: true, title: "Weather Details"}} />
+       <Stack.Screen name="weather/[city]" />
       </Stack>
       <StatusBar style="auto" />
       </QueryClientProvider>
