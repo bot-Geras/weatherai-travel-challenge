@@ -2,7 +2,7 @@ import { currentWeather, forecast } from './cacheService.js';
 import 'dotenv/config';
 
 const API_KEY = process.env.WEATHER_API_KEY;
-const WEATHER_API_BASE = process.env.WEATHER_API_URL || 'https://api.weather-ai.co/v1';
+const WEATHER_API_BASE = process.env.WEATHER_API_URL
 
 // Helper to make authenticated fetch
 async function authFetch(url) {

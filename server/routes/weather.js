@@ -1,86 +1,47 @@
 import express from 'express';
-import { getFullWeather } from '../services/weatherService.js';
-import { geocodeCity } from '../services/geocodeService.js';
-import { getTravelAdvice, getFallbackAdvice } from '../services/deepseekService.js';
+import { fetchCurrentWeather, fetchWeatherForecast, getFullWeather } from '../services/weatherService.js';
 
 const router = express.Router();
 
-// Map condition codes to readable text
-function getConditionText(code) {
-    const map = {
-        '0': 'Clear sky',
-        '1': 'Mainly clear',
-        '2': 'Partly cloudy',
-        '3': 'Overcast',
-        '51': 'Light drizzle',
-        '53': 'Moderate drizzle',
-        '55': 'Dense drizzle',
-        '61': 'Slight rain',
-        '63': 'Moderate rain',
-        '65': 'Heavy rain'
-    };
-    return map[String(code)] || 'Unknown';
-}
-
-router.get('/advice', async (req, res, next) => {
+// GET /api/weather/current?lat=35.6895&lon=139.6917
+router.get('/current', async (req, res, next) => {
     try {
-        const { lat, lon, city } = req.query;
-        let latitude, longitude;
-
-        if (city) {
-            const location = await geocodeCity(city);
-            latitude = location.lat;
-            longitude = location.lon;
-        } else if (lat && lon) {
-            latitude = parseFloat(lat);
-            longitude = parseFloat(lon);
-        } else {
-            return res.status(400).json({ error: 'Either city or lat/lon parameters are required' });
+        const { lat, lon } = req.query;
+        if (!lat || !lon) {
+            return res.status(400).json({ error: 'lat and lon are required' });
         }
+        const result = await fetchCurrentWeather(parseFloat(lat), parseFloat(lon));
+        res.json(result);
+    } catch (err) {
+        next(err);
+    }
+});
 
-        // Get raw weather data (full API response)
-        const weather = await getFullWeather(latitude, longitude);
-        
-        // The API response is inside weather.current (because fetchCurrentWeather returns { data: {...} })
-        const currentData = weather.current?.current;      // the nested 'current' object
-        const hourlyFirst = weather.current?.hourly?.[0]; // first hour for humidity
-
-        // Extract values for the response
-        const temperature = currentData?.temperature ?? 'N/A';
-        const condition = getConditionText(currentData?.condition_code);
-        const humidity = hourlyFirst?.humidity ?? 'N/A';
-
-        // Prepare a simplified weather object for the AI (matches expected shape)
-        const aiWeatherData = {
-            current: {
-                temp: temperature,
-                condition: condition,
-                humidity: humidity,
-                wind_speed: currentData?.wind_speed
-            }
-        };
-
-        let aiResult;
-        try {
-            aiResult = await getTravelAdvice(latitude, longitude, aiWeatherData);
-        } catch (error) {
-            console.error('AI error:', error);
-            aiResult = { source: 'fallback', data: getFallbackAdvice(aiWeatherData) };
+// GET /api/weather/forecast?lat=35.6895&lon=139.6917&days=3
+router.get('/forecast', async (req, res, next) => {
+    try {
+        const { lat, lon, days = 3 } = req.query;
+        if (!lat || !lon) {
+            return res.status(400).json({ error: 'lat and lon are required' });
         }
+        const result = await fetchWeatherForecast(parseFloat(lat), parseFloat(lon), parseInt(days));
+        res.json(result);
+    } catch (err) {
+        next(err);
+    }
+});
 
-        res.json({
-            location: { lat: latitude, lon: longitude },
-            weather: {
-                temp: temperature,
-                condition: condition,
-                humidity: humidity
-            },
-            advice: aiResult.data,
-            source: aiResult.source,
-            cache_info: weather.sources
-        });
-    } catch (error) {
-        next(error);
+// GET /api/weather/full?lat=35.6895&lon=139.6917
+router.get('/full', async (req, res, next) => {
+    try {
+        const { lat, lon } = req.query;
+        if (!lat || !lon) {
+            return res.status(400).json({ error: 'lat and lon are required' });
+        }
+        const result = await getFullWeather(parseFloat(lat), parseFloat(lon));
+        res.json(result);
+    } catch (err) {
+        next(err);
     }
 });
 
