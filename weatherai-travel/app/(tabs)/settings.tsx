@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { View, Text, Switch, TouchableOpacity, Alert } from 'react-native';
 import { getUnits, saveUnits, clearWeatherCache } from '../../services/storage';
-
+import { SafeAreaView } from 'react-native-safe-area-context';
 export default function SettingsScreen() {
   const [isMetric, setIsMetric] = useState(true);
 
@@ -38,7 +38,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <View className="flex-1 bg-gray-100 p-5">
+    <SafeAreaView className="flex-1 bg-gray-100 p-5">
       <View className="bg-white rounded-xl p-4 mb-5 flex-row justify-between items-center">
         <Text className="text-base">Temperature units</Text>
         <View className="flex-row items-center">
@@ -57,6 +57,6 @@ export default function SettingsScreen() {
           Powered by WeatherAI API + Gemini/DeepSeek
         </Text>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }

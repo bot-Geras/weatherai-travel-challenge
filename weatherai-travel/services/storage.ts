@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { TravelAdviceResponse } from '../types';
+import { TravelAdviceResponse, HistoryItem } from '../types';
 
 const KEYS = {
   RECENT_CITIES: '@recent_cities',
@@ -8,14 +8,38 @@ const KEYS = {
 };
 
 export const saveRecentCity = async (city: string): Promise<void> => {
+  if (!city || typeof city !== 'string') return;
   const existing = await getRecentCities();
-  const updated = [city, ...existing.filter(c => c !== city)].slice(0, 5);
+  const newItem: HistoryItem = { city, timestamp: Date.now() };
+  
+  // Remove existing entry for same city to move it to top
+  const filtered = existing.filter(item => 
+    item && item.city && item.city.toLowerCase() !== city.toLowerCase()
+  );
+  const updated = [newItem, ...filtered].slice(0, 50); // Keep last 50
+  
   await AsyncStorage.setItem(KEYS.RECENT_CITIES, JSON.stringify(updated));
 };
 
-export const getRecentCities = async (): Promise<string[]> => {
+export const getRecentCities = async (): Promise<HistoryItem[]> => {
   const data = await AsyncStorage.getItem(KEYS.RECENT_CITIES);
-  return data ? JSON.parse(data) : [];
+  if (!data) return [];
+  try {
+    const parsed = JSON.parse(data);
+    if (!Array.isArray(parsed)) return [];
+
+    // Handle migration from old string[] format to new HistoryItem[] format
+    if (parsed.length > 0 && typeof parsed[0] === 'string') {
+      return parsed.map((city: string) => ({ city, timestamp: Date.now() }));
+    }
+
+    // Filter out invalid items and ensure they have the required properties
+    return parsed.filter((item: any) => 
+      item && typeof item === 'object' && typeof item.city === 'string'
+    );
+  } catch {
+    return [];
+  }
 };
 
 export const saveUnits = async (units: 'metric' | 'imperial'): Promise<void> => {

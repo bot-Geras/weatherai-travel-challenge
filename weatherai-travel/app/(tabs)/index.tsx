@@ -1,26 +1,35 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
-import { router } from 'expo-router';
+import { View, Text, TextInput, TouchableOpacity, FlatList, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { router, useNavigation } from 'expo-router';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { getRecentCities, saveRecentCity } from '../../services/storage';
-import { geocodeCity } from '../../services/api';
+import { geocodeCity,  } from '../../services/api';
+import { HistoryItem } from '../../types';
 
 export default function HomeScreen() {
   const [city, setCity] = useState('');
   const [loading, setLoading] = useState(false);
-  const [recentCities, setRecentCities] = useState<string[]>([]);
+  const [recentCities, setRecentCities] = useState<HistoryItem[]>([]);
+ 
+ 
   const debounceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+ 
+  const navigation = useNavigation();
 
   useEffect(() => {
-    loadRecent();
-  }, []);
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadRecent();
+    });
+    
+    return unsubscribe;
+  }, [navigation]);
 
   const loadRecent = async () => {
     const cities = await getRecentCities();
-    setRecentCities(cities);
+    setRecentCities(cities.slice(0, 5));
   };
 
   const performSearch = async (searchCity: string) => {
@@ -57,6 +66,7 @@ export default function HomeScreen() {
   }, [city]);
 
   const handleRecentPress = (cityName: string) => {
+    if (!cityName) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setCity(cityName);
     performSearch(cityName);
@@ -139,18 +149,21 @@ export default function HomeScreen() {
             <FlatList
               horizontal
               data={recentCities}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  className="bg-gray-100 px-5 py-3 rounded-2xl mr-3 border border-gray-200 shadow-sm"
-                  onPress={() => handleRecentPress(item)}
-                >
-                  <View className="flex-row items-center">
-                    <Ionicons name="time-outline" size={16} color="#6B7280" className="mr-2" />
-                    <Text className="text-gray-700 font-medium ml-2">{item}</Text>
-                  </View>
-                </TouchableOpacity>
-              )}
-              keyExtractor={(item, idx) => `${item}-${idx}`}
+              renderItem={({ item }) => {
+                if (!item || !item.city) return null;
+                return (
+                  <TouchableOpacity
+                    className="bg-gray-100 px-5 py-3 rounded-2xl mr-3 border border-gray-200 shadow-sm"
+                    onPress={() => handleRecentPress(item.city)}
+                  >
+                    <View className="flex-row items-center">
+                      <Ionicons name="time-outline" size={16} color="#6B7280" className="mr-2" />
+                      <Text className="text-gray-700 font-medium ml-2">{item.city}</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              }}
+              keyExtractor={(item, idx) => (item?.city || 'unknown') + '-' + (item?.timestamp || idx)}
               showsHorizontalScrollIndicator={false}
             />
           </Animated.View>

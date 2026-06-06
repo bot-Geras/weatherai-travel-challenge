@@ -8,6 +8,7 @@ export default function TabLayout() {
         tabBarIcon: ({ focused, color, size }) => {
           let iconName: any;
           if (route.name === 'index') iconName = focused ? 'search' : 'search-outline';
+          else if (route.name === 'history') iconName = focused ? 'time' : 'time-outline';
           else iconName = focused ? 'settings' : 'settings-outline';
           return <Ionicons name={iconName} size={size} color={color} />;
         },
@@ -23,6 +24,7 @@ export default function TabLayout() {
       })}
     >
       <Tabs.Screen name="index" options={{ title: 'Explore' }} />
+      <Tabs.Screen name="history" options={{ title: 'History' }} />
       <Tabs.Screen name="settings" options={{ title: 'Settings' }} />
     </Tabs>
   );

@@ -1,4 +1,4 @@
-// types.ts
+
 export interface WeatherData {
   temp: number | string;
   condition: string;
@@ -23,4 +23,9 @@ export interface GeocodeResponse {
   lat: number;
   lon: number;
   name: string;
+}
+
+export interface HistoryItem {
+  city: string;
+  timestamp: number;
 }
